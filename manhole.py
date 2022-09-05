@@ -1,6 +1,7 @@
 import pygame
 
 from pygame import display, Surface
+from pygame.sprite import Sprite
 from config import KeyBinds, Config
 
 pygame.init()
@@ -9,20 +10,22 @@ vec = pygame.math.Vector2
 frames_per_second = pygame.time.Clock()
 
 
-class GameObject:
-    def __init__(self, size, colour, position):
-        self.surface = Surface(vec(size))
-        self.surface.fill(colour)
-        self.rectangle = self.surface.get_rect()
-        self.rectangle.midtop = vec(position)
+class GameObject(Sprite):
+    def __init__(self, image, position):
+        super().__init__()
+        self.image = image
+        self.rectangle = self.image.get_rect()
+        self.rectangle.topleft = vec(position)
 
     def draw(self):
-        return self.surface, self.rectangle
+        return self.image, self.rectangle
 
 
 class Player(GameObject):
     def __init__(self):
-        super().__init__(Config.PLAYER_SIZE, Config.PLAYER_COLOUR, (50, 50))
+        image = Surface(Config.PLAYER_SIZE)
+        image.fill(Config.PLAYER_COLOUR)
+        super().__init__(image, (Config.PLAYER_VALID_X[0], Config.PLAYER_VALID_Y[0]))
 
 
 class Walker:
@@ -33,7 +36,13 @@ class Walker:
 
 class Environment:
     def __init__(self):
+        self.static = self.create_static()
         self.games = {}
+
+    @staticmethod
+    def create_static():
+        static = []
+        return []
 
     def add_object(self, genome_id):
         self.games[genome_id] = {"player": Player(), "walkers": []}
@@ -46,16 +55,22 @@ class Environment:
         game = self.games[game_id]
         player = game["player"]
         if keys[KeyBinds.DOWN] > 0.5:
-            player.y = 1
+            coordinate = player.rectangle.top + 64 * Config.SCALAR
+            player.rectangle.top = coordinate if coordinate in Config.PLAYER_VALID_Y else player.rectangle.top
         if keys[KeyBinds.UP] > 0.5:
-            player.y = 0
+            coordinate = player.rectangle.top - 64 * Config.SCALAR
+            player.rectangle.top = coordinate if coordinate in Config.PLAYER_VALID_Y else player.rectangle.top
         if keys[KeyBinds.LEFT] > 0.5:
-            player.x = 0
+            coordinate = player.rectangle.left - 48 * Config.SCALAR
+            player.rectangle.left = coordinate if coordinate in Config.PLAYER_VALID_X else player.rectangle.left
         if keys[KeyBinds.RIGHT] > 0.5:
-            player.x = 1
+            coordinate = player.rectangle.left + 48 * Config.SCALAR
+            player.rectangle.left = coordinate if coordinate in Config.PLAYER_VALID_X else player.rectangle.left
 
     def render_environment(self):
-        game_display.fill((0, 0, 0))
+        game_display.fill(Config.SCREEN_COLOUR)
+        for game_object in self.static:
+            game_display.blit(*game_object.draw())
         for game in self.games.values():
             player = game["player"]
             game_display.blit(*player.draw())
