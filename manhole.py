@@ -4,7 +4,7 @@ from pygame import display, Surface
 from pygame.image import load
 from pygame.transform import flip, scale
 
-from random import choice
+from random import choice, randrange
 
 from config import KeyBinds, Config
 
@@ -44,6 +44,7 @@ class Walker(GameObject):
         self.bottom_y = walker_data["POSITION"][1]
         self.top_y = self.bottom_y - Config.WALKER_JUMP_DISTANCE
         self.velocity = vec(Config.WALKER_SPEED_X * walker_data["DIRECTION"], Config.WALKER_SPEED_Y)
+        self.visible = False
         self.dead = False
 
 
@@ -73,16 +74,21 @@ class Environment:
         return static
 
     def add_object(self, game_id):
-        self.games[game_id] = {"player": Player(), "walkers": [], "score": 0}
+        self.games[game_id] = {"player": Player(), "walkers": [], "score": 0, "time": randrange(150, 450, 100), "counter": 0}
 
     def get_keys(self):
         keys = pygame.key.get_pressed()
         self.update_player(list(self.games.keys())[0], keys)
 
     def add_walker(self, game_id):
-        walker = Walker(choice(Config.WALKER_DATA))
-        if len(self.games[game_id]["walkers"]) <= 2:
-            self.games[game_id]["walkers"].append(walker)
+        game = self.games[game_id]
+        game["counter"] += 1
+        if game["counter"] == game["time"]:
+            game["counter"] = 0
+            game["time"] = randrange(50, 450, 100)
+            walker = Walker(choice(Config.WALKER_DATA))
+            if len(game["walkers"]) <= 3:
+                game["walkers"].append(walker)
 
     def determine_collisions_with_static(self, first_point, second_point):
         for collision in self.static_collisions:
@@ -91,7 +97,8 @@ class Environment:
         return False
 
     def determine_collisions(self, player, walker):
-        if walker.bottom_y <= walker.position.y and 0 <= walker.position.x <= Config.SCREEN_WIDTH:
+        if walker.bottom_y <= walker.position.y and 0 <= walker.rectangle.center[0] <= Config.SCREEN_WIDTH:
+            walker.visible = True
             first_point = None
             second_point = None
             if walker.direction == 1:
@@ -121,6 +128,7 @@ class Environment:
                 walker.position.y = walker.bottom_y
                 walker.velocity.y = -walker.velocity.y
             walker.rectangle.topleft = walker.position
+        game["walkers"] = [walker for walker in game["walkers"] if not walker.visible or not walker.dead]
 
     def update_player(self, game_id, keys):
         game = self.games[game_id]
