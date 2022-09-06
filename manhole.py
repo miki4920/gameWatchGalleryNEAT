@@ -39,34 +39,32 @@ class Walker(GameObject):
             image = flip(image, True, False)
         image.convert()
         super().__init__(image, (walker_data["POSITION"]))
-        self.position = self.rectangle.topleft
+        self.direction = walker_data["DIRECTION"]
+        self.position = vec(self.rectangle.topleft)
         self.bottom_y = walker_data["POSITION"][1]
         self.top_y = self.bottom_y - Config.WALKER_JUMP_DISTANCE
         self.velocity = vec(Config.WALKER_SPEED_X * walker_data["DIRECTION"], Config.WALKER_SPEED_Y)
-
-    def update(self):
-        self.position = vec(self.position) + self.velocity
-        if self.position.y < self.top_y:
-            self.position.y = self.top_y
-            self.velocity.y = -self.velocity.y
-        elif self.position.y > self.bottom_y:
-            self.position.y = self.bottom_y
-            self.velocity.y = -self.velocity.y
-        self.rectangle.topleft = self.position
+        self.dead = False
 
 
 class Environment:
     def __init__(self):
+        self.static_collisions = self.create_static_collisions()
         self.static = self.create_static()
         self.games = {}
 
     @staticmethod
-    def create_static():
+    def create_static_collisions():
         static = []
         for surface_data in Config.STATIC_SURFACES:
             surface = Surface(surface_data["SIZE"])
             surface.fill(surface_data["COLOUR"])
             static.append(GameObject(surface, surface_data["POSITION"]))
+        return static
+
+    @staticmethod
+    def create_static():
+        static = []
         for image_data in Config.STATIC_IMAGES:
             image = load(image_data["IMAGE"])
             image = scale(image, image_data["SIZE"])
@@ -75,21 +73,57 @@ class Environment:
         return static
 
     def add_object(self, game_id):
-        self.games[game_id] = {"player": Player(), "walkers": []}
+        self.games[game_id] = {"player": Player(), "walkers": [], "score": 0}
 
     def get_keys(self):
         keys = pygame.key.get_pressed()
-        self.update(list(self.games.keys())[0], keys)
+        self.update_player(list(self.games.keys())[0], keys)
 
     def add_walker(self, game_id):
         walker = Walker(choice(Config.WALKER_DATA))
         if len(self.games[game_id]["walkers"]) <= 2:
             self.games[game_id]["walkers"].append(walker)
 
-    def update(self, game_id, keys):
+    def determine_collisions_with_static(self, first_point, second_point):
+        for collision in self.static_collisions:
+            if collision.rectangle.collidepoint(first_point) or collision.rectangle.collidepoint(second_point):
+                return True
+        return False
+
+    def determine_collisions(self, player, walker):
+        if walker.bottom_y <= walker.position.y and 0 <= walker.position.x <= Config.SCREEN_WIDTH:
+            first_point = None
+            second_point = None
+            if walker.direction == 1:
+                first_point = walker.rectangle.bottomright
+                second_point = first_point[0], first_point[1] - 3
+            elif walker.direction == -1:
+                first_point = walker.rectangle.bottomleft
+                second_point = first_point[0], first_point[1] + 3
+            if not self.determine_collisions_with_static(first_point, second_point):
+                collision = player.rectangle.collidepoint(first_point) or player.rectangle.collidepoint(second_point)
+                if collision:
+                    return True
+                else:
+                    walker.dead = True
+
+    def update(self, game_id):
         game = self.games[game_id]
+        player = game["player"]
         for walker in game["walkers"]:
-            walker.update()
+            if self.determine_collisions(player, walker):
+                game["score"] += 1
+            walker.position = vec(walker.position) + walker.velocity
+            if walker.position.y < walker.top_y:
+                walker.position.y = walker.top_y
+                walker.velocity.y = -walker.velocity.y
+            elif walker.position.y > walker.bottom_y:
+                walker.position.y = walker.bottom_y
+                walker.velocity.y = -walker.velocity.y
+            walker.rectangle.topleft = walker.position
+
+    def update_player(self, game_id, keys):
+        game = self.games[game_id]
         player = game["player"]
         if keys[KeyBinds.DOWN] > 0.5:
             coordinate = player.rectangle.top + 64 * Config.SCALAR
@@ -108,11 +142,14 @@ class Environment:
         game_display.fill(Config.SCREEN_COLOUR)
         for game_object in self.static:
             game_display.blit(*game_object.draw())
+        for game_object in self.static_collisions:
+            game_display.blit(*game_object.draw())
         for game in self.games.values():
             player = game["player"]
             game_display.blit(*player.draw())
             for walker in game["walkers"]:
-                game_display.blit(*walker.draw())
+                if not walker.dead:
+                    game_display.blit(*walker.draw())
         display.update()
 
 
@@ -123,5 +160,6 @@ if __name__ == "__main__":
         environment.add_walker("magic")
         environment.render_environment()
         environment.get_keys()
+        environment.update("magic")
         pygame.event.pump()
         frames_per_second.tick(50)
