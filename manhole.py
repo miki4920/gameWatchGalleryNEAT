@@ -3,6 +3,9 @@ import pygame
 from pygame import display, Surface
 from pygame.image import load
 from pygame.transform import scale
+
+from random import choice
+
 from config import KeyBinds, Config
 
 pygame.init()
@@ -13,10 +16,9 @@ frames_per_second = pygame.time.Clock()
 
 class GameObject:
     def __init__(self, image, position):
-        super().__init__()
         self.image = image
         self.rectangle = self.image.get_rect()
-        self.rectangle.topleft = vec(position)
+        self.rectangle.topleft = position
 
     def draw(self):
         return self.image, self.rectangle
@@ -29,10 +31,26 @@ class Player(GameObject):
         super().__init__(image, (Config.PLAYER_VALID_X[0], Config.PLAYER_VALID_Y[0]))
 
 
-class Walker:
-    def __init__(self, position, velocity):
-        self.position = vec(position)
-        self.velocity = vec(velocity)
+class Walker(GameObject):
+    def __init__(self, walker_data):
+        image = load("sprites/walker.png")
+        image = scale(image, Config.WALKER_SIZE)
+        image.convert()
+        super().__init__(image, (walker_data["POSITION"]))
+        self.position = self.rectangle.topleft
+        self.bottom_y = walker_data["POSITION"][1]
+        self.top_y = self.bottom_y - Config.WALKER_JUMP_DISTANCE
+        self.velocity = vec(Config.WALKER_SPEED_X * walker_data["DIRECTION"], Config.WALKER_SPEED_Y)
+
+    def update(self):
+        self.position = vec(self.position) + self.velocity
+        if self.position.y < self.top_y:
+            self.position.y = self.top_y
+            self.velocity.y = -self.velocity.y
+        elif self.position.y > self.bottom_y:
+            self.position.y = self.bottom_y
+            self.velocity.y = -self.velocity.y
+        self.rectangle.topleft = self.position
 
 
 class Environment:
@@ -54,15 +72,22 @@ class Environment:
             static.append(GameObject(image, image_data["POSITION"]))
         return static
 
-    def add_object(self, genome_id):
-        self.games[genome_id] = {"player": Player(), "walkers": []}
+    def add_object(self, game_id):
+        self.games[game_id] = {"player": Player(), "walkers": []}
 
     def get_keys(self):
         keys = pygame.key.get_pressed()
         self.update(list(self.games.keys())[0], keys)
 
+    def add_walker(self, game_id):
+        walker = Walker(choice(Config.WALKER_DATA))
+        if len(self.games[game_id]["walkers"]) <= 2:
+            self.games[game_id]["walkers"].append(walker)
+
     def update(self, game_id, keys):
         game = self.games[game_id]
+        for walker in game["walkers"]:
+            walker.update()
         player = game["player"]
         if keys[KeyBinds.DOWN] > 0.5:
             coordinate = player.rectangle.top + 64 * Config.SCALAR
@@ -84,6 +109,8 @@ class Environment:
         for game in self.games.values():
             player = game["player"]
             game_display.blit(*player.draw())
+            for walker in game["walkers"]:
+                game_display.blit(*walker.draw())
         display.update()
 
 
@@ -91,6 +118,7 @@ if __name__ == "__main__":
     environment = Environment()
     environment.add_object("magic")
     while True:
+        environment.add_walker("magic")
         environment.render_environment()
         environment.get_keys()
         pygame.event.pump()
