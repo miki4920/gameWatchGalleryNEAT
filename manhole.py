@@ -1,16 +1,17 @@
 import pygame
 
 from pygame import display, Surface
-from pygame.sprite import Sprite
+from pygame.image import load
+from pygame.transform import scale
 from config import KeyBinds, Config
 
 pygame.init()
-game_display = display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT), pygame.RESIZABLE)
+game_display = display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
 vec = pygame.math.Vector2
 frames_per_second = pygame.time.Clock()
 
 
-class GameObject(Sprite):
+class GameObject:
     def __init__(self, image, position):
         super().__init__()
         self.image = image
@@ -42,7 +43,16 @@ class Environment:
     @staticmethod
     def create_static():
         static = []
-        return []
+        for surface_data in Config.STATIC_SURFACES:
+            surface = Surface(surface_data["SIZE"])
+            surface.fill(surface_data["COLOUR"])
+            static.append(GameObject(surface, surface_data["POSITION"]))
+        for image_data in Config.STATIC_IMAGES:
+            image = load(image_data["IMAGE"])
+            image = scale(image, image_data["SIZE"])
+            image.convert()
+            static.append(GameObject(image, image_data["POSITION"]))
+        return static
 
     def add_object(self, genome_id):
         self.games[genome_id] = {"player": Player(), "walkers": []}
