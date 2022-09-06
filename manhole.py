@@ -124,4 +124,4 @@ if __name__ == "__main__":
         environment.render_environment()
         environment.get_keys()
         pygame.event.pump()
-        frames_per_second.tick(60)
+        frames_per_second.tick(50)
