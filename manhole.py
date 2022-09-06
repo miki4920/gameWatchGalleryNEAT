@@ -2,7 +2,7 @@ import pygame
 
 from pygame import display, Surface
 from pygame.image import load
-from pygame.transform import scale
+from pygame.transform import flip, scale
 
 from random import choice
 
@@ -35,6 +35,8 @@ class Walker(GameObject):
     def __init__(self, walker_data):
         image = load("sprites/walker.png")
         image = scale(image, Config.WALKER_SIZE)
+        if walker_data["DIRECTION"] == 1:
+            image = flip(image, True, False)
         image.convert()
         super().__init__(image, (walker_data["POSITION"]))
         self.position = self.rectangle.topleft

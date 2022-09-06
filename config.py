@@ -37,6 +37,6 @@ class Config:
                    {"POSITION": (160 * SCALAR, 26 * SCALAR), "DIRECTION": -1},
                    {"POSITION": (-14 * SCALAR, 90 * SCALAR), "DIRECTION": 1},
                    {"POSITION": (160 * SCALAR, 90 * SCALAR), "DIRECTION": -1})
-    WALKER_SPEED_X = 0.1 * SCALAR
+    WALKER_SPEED_X = 0.05 * SCALAR
     WALKER_SPEED_Y = -0.05 * SCALAR
     WALKER_JUMP_DISTANCE = 5 * SCALAR
